@@ -1,4 +1,4 @@
-# Social Media Analytics and Scheduling Platform
+# Aalysis platform
 
 A Django-based platform for managing social media analytics and post scheduling.
 
