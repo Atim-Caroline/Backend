@@ -4,6 +4,11 @@ from django.http import JsonResponse
 from .models import ScheduledPost, PostReminder, PostAnalytics
 from .forms import ScheduledPostForm, PostReminderForm
 from django.contrib import messages
+from rest_framework import viewsets, permissions
+from rest_framework.response import Response
+from rest_framework.decorators import action
+from django.utils import timezone
+from .serializers import ScheduledPostSerializer, PostReminderSerializer
 
 @login_required
 def dashboard(request):
@@ -166,4 +171,33 @@ def reminders_data(request):
         'frequency': r.frequency,
         'preferred_time': r.preferred_time.strftime('%H:%M')
     } for r in reminders]
-    return JsonResponse({'data': data}) 
+    return JsonResponse({'data': data})
+
+class ScheduledPostViewSet(viewsets.ModelViewSet):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = ScheduledPostSerializer
+
+    def get_queryset(self):
+        return ScheduledPost.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+    @action(detail=False, methods=['get'])
+    def upcoming(self):
+        upcoming_posts = self.get_queryset().filter(
+            scheduled_time__gt=timezone.now(),
+            status='scheduled'
+        ).order_by('scheduled_time')
+        serializer = self.get_serializer(upcoming_posts, many=True)
+        return Response(serializer.data)
+
+class PostReminderViewSet(viewsets.ModelViewSet):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = PostReminderSerializer
+
+    def get_queryset(self):
+        return PostReminder.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user) 

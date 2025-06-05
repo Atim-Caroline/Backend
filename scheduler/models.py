@@ -11,13 +11,15 @@ class ScheduledPost(models.Model):
     ]
     
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    title = models.CharField(max_length=200)
+    title = models.CharField(max_length=200, default="Untitled Post")
     content = models.TextField()
     image = models.ImageField(upload_to='posts/', blank=True, null=True)
     scheduled_time = models.DateTimeField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    published_post_id = models.CharField(max_length=255, blank=True, null=True)
+    error_message = models.TextField(blank=True, null=True)
     
     class Meta:
         ordering = ['-scheduled_time']

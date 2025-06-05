@@ -4,7 +4,7 @@ from .models import ScheduledPost, PostReminder
 class ScheduledPostForm(forms.ModelForm):
     class Meta:
         model = ScheduledPost
-        fields = ['title', 'content', 'scheduled_time', 'image']
+        fields = ['title', 'content', 'scheduled_time', 'image', 'status']
         widgets = {
             'scheduled_time': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
         }

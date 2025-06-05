@@ -20,9 +20,11 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'rest_framework.authtoken',
     'corsheaders',
     'django_celery_beat',
-    'social_django',
+    'social_connector.apps.SocialConnectorConfig',
+    'compliance_service.apps.ComplianceServiceConfig',
     'analytics',
     'scheduler',
     'trends',
@@ -44,7 +46,7 @@ ROOT_URLCONF = 'social_insights.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'templates')],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -52,8 +54,6 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                'social_django.context_processors.backends',
-                'social_django.context_processors.login_redirect',
             ],
         },
     },
@@ -88,25 +88,40 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-STATIC_URL = 'static/'
-STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+# Static files (CSS, JavaScript, Images)
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_DIRS = [BASE_DIR / 'static']
 
+# Media files
 MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Authentication settings
-LOGIN_URL = 'login'
-LOGIN_REDIRECT_URL = 'home'
-LOGOUT_REDIRECT_URL = 'home'
+# REST Framework settings
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+    ],
+    'DEFAULT_PARSER_CLASSES': [
+        'rest_framework.parsers.JSONParser',
+        'rest_framework.parsers.MultiPartParser',
+    ]
+}
 
-AUTHENTICATION_BACKENDS = (
-    'social_core.backends.facebook.FacebookOAuth2',
-    'social_core.backends.instagram.InstagramOAuth2',
-    'django.contrib.auth.backends.ModelBackend',
-)
+# CORS settings
+CORS_ALLOW_ALL_ORIGINS = DEBUG
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+]
 
 # Celery Configuration
 CELERY_BROKER_URL = 'redis://localhost:6379/0'
@@ -116,20 +131,29 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 
-# REST Framework settings
-REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.SessionAuthentication',
-        'rest_framework.authentication.BasicAuthentication',
-    ],
-    'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',
-    ],
+# Social Media API Configuration
+SOCIAL_API_CONFIGS = {
+    'twitter': {
+        'api_key': os.getenv('TWITTER_API_KEY'),
+        'api_secret': os.getenv('TWITTER_API_SECRET'),
+        'access_token': os.getenv('TWITTER_ACCESS_TOKEN'),
+        'access_token_secret': os.getenv('TWITTER_ACCESS_TOKEN_SECRET'),
+    },
+    'linkedin': {
+        'client_id': os.getenv('LINKEDIN_CLIENT_ID'),
+        'client_secret': os.getenv('LINKEDIN_CLIENT_SECRET'),
+    },
+    'facebook': {
+        'app_id': os.getenv('FACEBOOK_APP_ID'),
+        'app_secret': os.getenv('FACEBOOK_APP_SECRET'),
+    }
 }
 
-# CORS settings
-CORS_ALLOW_ALL_ORIGINS = DEBUG
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:8000",
-    "http://127.0.0.1:8000",
-] 
+# Compliance Service Configuration
+COMPLIANCE_SETTINGS = {
+    'content_filter_enabled': True,
+    'profanity_check': True,
+    'sentiment_analysis': True,
+    'max_retries': 3,
+    'retry_delay': 300,  # 5 minutes
+} 

@@ -2,15 +2,25 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-from django.views.generic import TemplateView
-from django.contrib.auth import views as auth_views
+from rest_framework.routers import DefaultRouter
+from rest_framework.authtoken.views import obtain_auth_token
+from social_connector.views import SocialAccountViewSet, SocialPostViewSet
+from compliance_service.views import ContentRuleViewSet, ComplianceCheckViewSet, ComplianceReportViewSet
+
+# Create a router and register our viewsets with it
+router = DefaultRouter()
+router.register(r'social/accounts', SocialAccountViewSet, basename='social-account')
+router.register(r'social/posts', SocialPostViewSet, basename='social-post')
+router.register(r'compliance/rules', ContentRuleViewSet, basename='content-rule')
+router.register(r'compliance/checks', ComplianceCheckViewSet, basename='compliance-check')
+router.register(r'compliance/reports', ComplianceReportViewSet, basename='compliance-report')
 
 urlpatterns = [
-    path('', TemplateView.as_view(template_name='home.html'), name='home'),
     path('admin/', admin.site.urls),
-    path('analytics/', include('analytics.urls')),
-    path('scheduler/', include('scheduler.urls')),
-    path('trends/', include('trends.urls')),
-    path('accounts/login/', auth_views.LoginView.as_view(template_name='registration/login.html'), name='login'),
-    path('accounts/logout/', auth_views.LogoutView.as_view(next_page='home'), name='logout'),
-] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT) 
+    path('api/', include(router.urls)),
+    path('api/token/', obtain_auth_token, name='api_token'),
+    path('api/scheduler/', include('scheduler.urls')),
+]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT) 
