@@ -1,0 +1,257 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Post Scheduler{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.10.1/main.min.css" rel="stylesheet">
+<style>
+    #calendar {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    .fc-event {
+        cursor: pointer;
+    }
+    .status-pending {
+        background-color: #ffc107;
+        border-color: #ffc107;
+    }
+    .status-published {
+        background-color: #28a745;
+        border-color: #28a745;
+    }
+    .status-failed {
+        background-color: #dc3545;
+        border-color: #dc3545;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="h2">Post Scheduler</h1>
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newPostModal">
+            <i class="fas fa-plus"></i> New Post
+        </button>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-9">
+        <div id="calendar"></div>
+    </div>
+    <div class="col-md-3">
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Upcoming Posts</h5>
+                <div id="upcomingPosts">
+                    <!-- Will be populated via JavaScript -->
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Post Reminders</h5>
+                <div id="postReminders">
+                    <!-- Will be populated via JavaScript -->
+                </div>
+                <button class="btn btn-outline-primary btn-sm mt-3" data-bs-toggle="modal" data-bs-target="#newReminderModal">
+                    <i class="fas fa-plus"></i> Add Reminder
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- New Post Modal -->
+<div class="modal fade" id="newPostModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Schedule New Post</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="newPostForm">
+                    <div class="mb-3">
+                        <label class="form-label">Platform</label>
+                        <select class="form-select" name="account" required>
+                            <!-- Will be populated via JavaScript -->
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Content</label>
+                        <textarea class="form-control" name="content" rows="4" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Media URL (optional)</label>
+                        <input type="url" class="form-control" name="media_url">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Schedule Date & Time</label>
+                        <input type="datetime-local" class="form-control" name="scheduled_time" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="savePost">Schedule Post</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- New Reminder Modal -->
+<div class="modal fade" id="newReminderModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Post Reminder</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="newReminderForm">
+                    <div class="mb-3">
+                        <label class="form-label">Title</label>
+                        <input type="text" class="form-control" name="title" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" name="description" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Frequency</label>
+                        <select class="form-select" name="frequency" required>
+                            <option value="DAILY">Daily</option>
+                            <option value="WEEKLY">Weekly</option>
+                            <option value="MONTHLY">Monthly</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Preferred Time</label>
+                        <input type="time" class="form-control" name="preferred_time" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveReminder">Save Reminder</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.10.1/main.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const calendarEl = document.getElementById('calendar');
+        const calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek,timeGridDay'
+            },
+            events: '/scheduler/api/posts/',
+            eventClick: function(info) {
+                // Handle event click
+                showPostDetails(info.event);
+            }
+        });
+        calendar.render();
+        
+        // Load initial data
+        loadUpcomingPosts();
+        loadReminders();
+        
+        // Handle form submissions
+        document.getElementById('savePost').addEventListener('click', function() {
+            const form = document.getElementById('newPostForm');
+            const formData = new FormData(form);
+            
+            fetch('/scheduler/posts/create/', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    calendar.refetchEvents();
+                    loadUpcomingPosts();
+                    $('#newPostModal').modal('hide');
+                    form.reset();
+                }
+            });
+        });
+        
+        document.getElementById('saveReminder').addEventListener('click', function() {
+            const form = document.getElementById('newReminderForm');
+            const formData = new FormData(form);
+            
+            fetch('/scheduler/reminders/create/', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    loadReminders();
+                    $('#newReminderModal').modal('hide');
+                    form.reset();
+                }
+            });
+        });
+    });
+    
+    function loadUpcomingPosts() {
+        fetch('/scheduler/api/posts/')
+            .then(response => response.json())
+            .then(data => {
+                const container = document.getElementById('upcomingPosts');
+                container.innerHTML = data.posts
+                    .filter(post => post.status === 'PENDING')
+                    .slice(0, 5)
+                    .map(post => `
+                        <div class="d-flex align-items-center mb-2">
+                            <div class="me-2">
+                                <i class="fab fa-${post.platform.toLowerCase()} text-muted"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="small text-muted">${new Date(post.scheduled_time).toLocaleString()}</div>
+                                <div class="text-truncate">${post.content}</div>
+                            </div>
+                        </div>
+                    `).join('');
+            });
+    }
+    
+    function loadReminders() {
+        fetch('/scheduler/api/reminders/')
+            .then(response => response.json())
+            .then(data => {
+                const container = document.getElementById('postReminders');
+                container.innerHTML = data.reminders
+                    .map(reminder => `
+                        <div class="d-flex align-items-center mb-2">
+                            <div class="me-2">
+                                <i class="fas fa-bell text-warning"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div>${reminder.title}</div>
+                                <div class="small text-muted">${reminder.frequency} at ${reminder.preferred_time}</div>
+                            </div>
+                        </div>
+                    `).join('');
+            });
+    }
+</script>
+{% endblock %} 
